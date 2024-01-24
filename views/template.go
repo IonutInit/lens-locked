@@ -7,6 +7,8 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"lens-locked/context"
+	"lens-locked/models"
 	"log"
 	"net/http"
 )
@@ -23,6 +25,7 @@ func (t Template) Execute(w http.ResponseWriter, r *http.Request, data interface
 			"csrfField": func() template.HTML {
 				return csrf.TemplateField(r)
 			},
+			"currentUser": func() *models.User { return context.User(r.Context()) },
 		},
 	)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -47,6 +50,7 @@ func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
 			"csrfField": func() (template.HTML, error) {
 				return "", fmt.Errorf("scrfField not implemented")
 			},
+			"currentUser": func() (*models.User, error) { return nil, fmt.Errorf("currentUser not implemented") },
 		},
 	)
 	tpl, err := tpl.ParseFS(fs, patterns...)

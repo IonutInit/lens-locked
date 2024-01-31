@@ -12,6 +12,7 @@ import (
 	"lens-locked/models"
 	"log"
 	"net/http"
+	"path/filepath"
 )
 
 func (t Template) Execute(w http.ResponseWriter, r *http.Request, data interface{}, errs ...error) {
@@ -62,7 +63,7 @@ type Template struct {
 }
 
 func ParseFS(fs fs.FS, patterns ...string) (Template, error) {
-	tpl := template.New(patterns[0])
+	tpl := template.New(filepath.Base(patterns[0]))
 	tpl = tpl.Funcs(
 		template.FuncMap{
 			"csrfField": func() (template.HTML, error) {

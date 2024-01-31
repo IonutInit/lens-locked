@@ -52,10 +52,13 @@ func main() {
 	sessionService := &models.SessionService{
 		DB: db,
 	}
-	pwResetService := &models.PasswordResetService{
+	pwResetService := models.PasswordResetService{
 		DB: db,
 	}
 	emailSErvice := models.NewEmailService(cfg.SMTP)
+	galleryService := &models.GalleryService{
+		DB: db,
+	}
 
 	// Set up middleware
 	umw := controllers.UserMiddleware{
@@ -66,13 +69,14 @@ func main() {
 	csrfMw := csrf.Protect(
 		[]byte(csrfKey),
 		csrf.Secure(cfg.CSRF.Secure),
+		csrf.Path("/"),
 	)
 
 	// Set up controllers
 	usersC := controllers.Users{
 		UserService:          userService,
 		SessionService:       sessionService,
-		PasswordResetService: pwResetService,
+		PasswordResetService: &pwResetService,
 		EmailService:         emailSErvice,
 	}
 	usersC.Templates.New = views.Must(views.ParseFS(
@@ -85,6 +89,14 @@ func main() {
 		templates.FS, "check-your-email.gohtml", "tailwind.gohtml"))
 	usersC.Templates.ResetPassword = views.Must(views.ParseFS(
 		templates.FS, "reset-pw.gohtml", "tailwind.gohtml"))
+
+	galleriesC := controllers.Galleries{
+		GalleryService: galleryService,
+	}
+	galleriesC.Templates.New = views.Must(views.ParseFS(
+		templates.FS, "galleries/new.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Edit = views.Must(views.ParseFS(
+		templates.FS, "galleries/edit.gohtml", "tailwind.gohtml"))
 
 	// Set up router and routes
 	r := chi.NewRouter()
@@ -102,15 +114,33 @@ func main() {
 	r.Post("/signup", usersC.Create)
 	r.Post("/signin", usersC.ProcessSignIn)
 	//r.Get("/users/me", usersC.CurrentUser)
-	r.Route("/users/me", func(r chi.Router) {
+	r.Route("/users", func(r chi.Router) {
 		r.Use(umw.RequireUser)
-		r.Get("/", usersC.CurrentUser)
+		r.Get("/me", usersC.CurrentUser)
 	})
 	r.Post("/signout", usersC.ProcessSignOut)
 	r.Get("/forgot-pw", usersC.ForgotPassword)
 	r.Post("/forgot-pw", usersC.ProcessForgotPassword)
 	r.Get("/reset-pw", usersC.ResetPassword)
 	r.Post("/reset-pw", usersC.ProcessResetPassword)
+
+	//r.Get("/galleries/new", galleriesC.New)
+	r.Route("/galleries", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(umw.RequireUser)
+			r.Get("/", galleriesC.Index)
+			r.Get("/new", galleriesC.New)
+			r.Post("/", galleriesC.Create)
+			r.Get("/{id}/edit", galleriesC.Edit)
+			r.Post("/{id}", galleriesC.Update)
+		})
+	})
+
+	//r.Route("/galleries", func(r chi.Router) {
+	//	r.Use(umw.RequireUser)
+	//	r.Get("/new", galleriesC.New)
+	//	r.Post("/", galleriesC.Create)
+	//})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Page not found", http.StatusNotFound)

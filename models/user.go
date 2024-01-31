@@ -20,10 +20,6 @@ type UserService struct {
 	DB *sql.DB
 }
 
-var (
-	ErrEmailTaken = errors.New("models: email address is already in use")
-)
-
 func (us *UserService) Create(email, password string) (*User, error) {
 	email = strings.ToLower(email)
 
@@ -64,11 +60,11 @@ func (us *UserService) Authenticate(email, password string) (*User, error) {
 		FROM users WHERE email=$1;`, email)
 	err := row.Scan(&user.ID, &user.PasswordHash)
 	if err != nil {
-		return nil, fmt.Errorf("authenticate: %w", err)
+		return nil, fmt.Errorf("authenticate_xxx: %w", err)
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("authenticate: %w", err)
+		return nil, fmt.Errorf("authenticate_yyy: %w", err)
 	}
 	return &user, nil
 }

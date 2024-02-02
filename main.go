@@ -97,6 +97,10 @@ func main() {
 		templates.FS, "galleries/new.gohtml", "tailwind.gohtml"))
 	galleriesC.Templates.Edit = views.Must(views.ParseFS(
 		templates.FS, "galleries/edit.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Index = views.Must(views.ParseFS(
+		templates.FS, "galleries/index.gohtml", "tailwind.gohtml"))
+	galleriesC.Templates.Show = views.Must(views.ParseFS(
+		templates.FS, "galleries/show.gohtml", "tailwind.gohtml"))
 
 	// Set up router and routes
 	r := chi.NewRouter()
@@ -114,9 +118,9 @@ func main() {
 	r.Post("/signup", usersC.Create)
 	r.Post("/signin", usersC.ProcessSignIn)
 	//r.Get("/users/me", usersC.CurrentUser)
-	r.Route("/users", func(r chi.Router) {
+	r.Route("/users/me", func(r chi.Router) {
 		r.Use(umw.RequireUser)
-		r.Get("/me", usersC.CurrentUser)
+		r.Get("/", usersC.CurrentUser)
 	})
 	r.Post("/signout", usersC.ProcessSignOut)
 	r.Get("/forgot-pw", usersC.ForgotPassword)
@@ -126,6 +130,7 @@ func main() {
 
 	//r.Get("/galleries/new", galleriesC.New)
 	r.Route("/galleries", func(r chi.Router) {
+		r.Get("/{id}", galleriesC.Show)
 		r.Group(func(r chi.Router) {
 			r.Use(umw.RequireUser)
 			r.Get("/", galleriesC.Index)
@@ -133,6 +138,7 @@ func main() {
 			r.Post("/", galleriesC.Create)
 			r.Get("/{id}/edit", galleriesC.Edit)
 			r.Post("/{id}", galleriesC.Update)
+			r.Post("/{id}/delete", galleriesC.Delete)
 		})
 	})
 

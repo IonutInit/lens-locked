@@ -67,7 +67,7 @@ func (ss *SessionService) User(token string) (*User, error) {
 
 	// query for the session with that hash
 	row := ss.DB.QueryRow(`
-		SELECT users_id
+		SELECT user_id
 		FROM sessions
 		WHERE token_hash = $1;`, tokenHash)
 	err := row.Scan(&user.ID)

@@ -53,6 +53,7 @@ func (u Users) Create(w http.ResponseWriter, r *http.Request) {
 			err = errors.Public(err, "That email address is already associated with an account")
 		}
 		u.Templates.New.Execute(w, r, data, err)
+		return
 	}
 
 	session, err := u.SessionService.Create(user.ID)

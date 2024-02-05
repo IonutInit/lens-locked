@@ -6,8 +6,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"lens-locked/context"
 	"lens-locked/models"
-	"math/rand"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"strconv"
 )
 
@@ -46,48 +47,48 @@ func (g Galleries) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, editPath, http.StatusFound)
 }
 
-func (g Galleries) Edit(w http.ResponseWriter, r *http.Request) {
-	//id, err := strconv.Atoi(chi.URLParam(r, "id"))
-	//if err != nil {
-	//	http.Error(w, "Invalid ID", http.StatusNotFound)
-	//	return
-	//}
-	//
-	//gallery, err := g.GalleryService.ByID(id)
-	//if err != nil {
-	//	if err == models.ErrNotFound {
-	//		http.Error(w, "Gallery not found", http.StatusNotFound)
-	//		return
-	//	}
-	//	http.Error(w, "Something went wrong", http.StatusInternalServerError)
-	//	return
-	//}
-
-	gallery, err := g.galleryByID(w, r, userMustOwnGallery)
-	if err != nil {
-		return
-	}
-
-	//user := context.User(r.Context())
-	//if gallery.UserID != user.ID {
-	//	http.Error(w, "You are not authorized to edit this gallery", http.StatusForbidden)
-	//	return
-	//}
-
-	//err = userMustOwnGallery(w, r, gallery)
-	//if err != nil {
-	//	return
-	//}
-
-	data := struct {
-		ID    int
-		Title string
-	}{
-		ID:    gallery.ID,
-		Title: gallery.Title,
-	}
-	g.Templates.Edit.Execute(w, r, data)
-}
+//func (g Galleries) Edit(w http.ResponseWriter, r *http.Request) {
+//	//id, err := strconv.Atoi(chi.URLParam(r, "id"))
+//	//if err != nil {
+//	//	http.Error(w, "Invalid ID", http.StatusNotFound)
+//	//	return
+//	//}
+//	//
+//	//gallery, err := g.GalleryService.ByID(id)
+//	//if err != nil {
+//	//	if err == models.ErrNotFound {
+//	//		http.Error(w, "Gallery not found", http.StatusNotFound)
+//	//		return
+//	//	}
+//	//	http.Error(w, "Something went wrong", http.StatusInternalServerError)
+//	//	return
+//	//}
+//
+//	gallery, err := g.galleryByID(w, r, userMustOwnGallery)
+//	if err != nil {
+//		return
+//	}
+//
+//	//user := context.User(r.Context())
+//	//if gallery.UserID != user.ID {
+//	//	http.Error(w, "You are not authorized to edit this gallery", http.StatusForbidden)
+//	//	return
+//	//}
+//
+//	//err = userMustOwnGallery(w, r, gallery)
+//	//if err != nil {
+//	//	return
+//	//}
+//
+//	data := struct {
+//		ID    int
+//		Title string
+//	}{
+//		ID:    gallery.ID,
+//		Title: gallery.Title,
+//	}
+//	g.Templates.Edit.Execute(w, r, data)
+//}
 
 func (g Galleries) Update(w http.ResponseWriter, r *http.Request) {
 	//id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -158,28 +159,28 @@ func (g Galleries) Index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (g Galleries) Show(w http.ResponseWriter, r *http.Request) {
-	gallery, err := g.galleryByID(w, r)
-	if err != nil {
-		return
-	}
-
-	var data struct {
-		ID     int
-		Title  string
-		Images []string
-	}
-	data.ID = gallery.ID
-	data.Title = gallery.Title
-
-	for i := 0; i < 20; i++ {
-		w, h := rand.Intn(500)+200, rand.Intn(500)+200
-		catImageURL := fmt.Sprintf("https://placekitten.com/%d/%d", w, h)
-		data.Images = append(data.Images, catImageURL)
-	}
-
-	g.Templates.Show.Execute(w, r, data)
-}
+//func (g Galleries) Show(w http.ResponseWriter, r *http.Request) {
+//	gallery, err := g.galleryByID(w, r)
+//	if err != nil {
+//		return
+//	}
+//
+//	var data struct {
+//		ID     int
+//		Title  string
+//		Images []string
+//	}
+//	data.ID = gallery.ID
+//	data.Title = gallery.Title
+//
+//	for i := 0; i < 20; i++ {
+//		w, h := rand.Intn(500)+200, rand.Intn(500)+200
+//		catImageURL := fmt.Sprintf("https://placekitten.com/%d/%d", w, h)
+//		data.Images = append(data.Images, catImageURL)
+//	}
+//
+//	g.Templates.Show.Execute(w, r, data)
+//}
 
 type galleryOpt func(w http.ResponseWriter, r *http.Request, gallery *models.Gallery) error
 
@@ -227,4 +228,116 @@ func (g Galleries) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/galleries", http.StatusFound)
+}
+
+func (g Galleries) Show(w http.ResponseWriter, r *http.Request) {
+	gallery, err := g.galleryByID(w, r)
+	if err != nil {
+		return
+	}
+
+	type Image struct {
+		GalleryID       int
+		Filename        string
+		FilenameEscaped string
+	}
+	var data struct {
+		ID     int
+		Title  string
+		Images []Image
+	}
+	data.ID = gallery.ID
+	data.Title = gallery.Title
+	images, err := g.GalleryService.Images(gallery.ID)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	for _, image := range images {
+		data.Images = append(data.Images, Image{
+			GalleryID:       image.GalleryID,
+			Filename:        image.Filename,
+			FilenameEscaped: url.PathEscape(image.Filename),
+		})
+	}
+	g.Templates.Show.Execute(w, r, data)
+}
+
+func (g Galleries) Image(w http.ResponseWriter, r *http.Request) {
+	//filename := chi.URLParam(r, "filename")
+	filename := g.filename(w, r)
+	galleryID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusNotFound)
+		return
+	}
+
+	image, err := g.GalleryService.Image(galleryID, filename)
+	if err != nil {
+		if errors.Is(err, models.ErrNotFound) {
+			http.Error(w, "Image not found", http.StatusNotFound)
+			return
+		}
+		fmt.Println(err)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	http.ServeFile(w, r, image.Path)
+}
+
+func (g Galleries) Edit(w http.ResponseWriter, r *http.Request) {
+	gallery, err := g.galleryByID(w, r, userMustOwnGallery)
+	if err != nil {
+		return
+	}
+	type Image struct {
+		GalleryID       int
+		Filename        string
+		FilenameEscaped string
+	}
+	var data struct {
+		ID     int
+		Title  string
+		Images []Image
+	}
+	data.ID = gallery.ID
+	data.Title = gallery.Title
+	images, err := g.GalleryService.Images(gallery.ID)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	for _, image := range images {
+		data.Images = append(data.Images, Image{
+			GalleryID:       image.GalleryID,
+			Filename:        image.Filename,
+			FilenameEscaped: url.PathEscape(image.Filename),
+		})
+	}
+	g.Templates.Edit.Execute(w, r, data)
+}
+
+func (g Galleries) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	//filename := chi.URLParam(r, "filename")
+	filename := g.filename(w, r)
+	gallery, err := g.galleryByID(w, r, userMustOwnGallery)
+	if err != nil {
+		return
+	}
+	err = g.GalleryService.DeleteImage(gallery.ID, filename)
+	if err != nil {
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	editPath := fmt.Sprintf("/galleries/%d/edit", gallery.ID)
+	http.Redirect(w, r, editPath, http.StatusFound)
+}
+
+func (g Galleries) filename(w http.ResponseWriter, r *http.Request) string {
+	filename := chi.URLParam(r, "filename")
+	filename = filepath.Base(filename)
+	return filename
 }
